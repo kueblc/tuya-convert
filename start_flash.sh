@@ -19,7 +19,7 @@ pushd scripts >/dev/null || exit
 
 echo "======================================================"
 echo -n "  Starting AP in a screen"
-$screen_with_log smarthack-wifi.log -S smarthack-wifi -m -d ./setup_ap.sh
+$screen_with_log smarthack-wifi.log -S smarthack-wifi -m -d sudo create_ap -n --redirect-to-localhost "$WLAN" -g "$GATEWAY" "$AP"
 while ! ping -c 1 -W 1 -n "$GATEWAY" &> /dev/null; do
 	printf .
 done
