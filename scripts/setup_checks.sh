@@ -29,7 +29,7 @@ check_eula () {
 }
 
 check_config () {
-	if ! iw list | grep -q "* AP"; then
+	if ! iw list | grep -A 10 "Supported interface modes" | grep -q -e "\* AP$"; then
 		echo "AP mode not supported!"
 		echo "Please attach a WiFi card that supports AP mode."
 		exit 1
@@ -43,6 +43,22 @@ check_config () {
 		echo -n "Please edit WLAN in config.txt to one of: "
 		ls -m /sys/class/net
 		exit 1
+	fi
+
+	if [ -n "$SSH_CONNECTION" ]; then
+		remoteip=$(echo "$SSH_CONNECTION" | cut -d " " -f1)
+		if ip -o route get $remoteip | grep -q " dev $WLAN "; then
+			echo "Warning: It appears that you are running this script over an SSH connection"
+			echo "that uses the WiFi interface $WIFI. This interface will be reconfigured to run"
+			echo "in access point (AP) mode, at which time all connections will be dropped."
+			echo "If you continue, your SSH connection will be dropped and you can likely no longer"
+			echo "interact with this script. To avoid this, connect via wired ethernet or USB."
+			read -p "Continue? [y/N]" -n 1 -r
+			echo
+			if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+				exit
+			fi
+		fi
 	fi
 }
 
@@ -58,6 +74,10 @@ check_port () {
 		echo "Port $port is needed to $reason"
 		read -p "Do you wish to terminate $process_name? [y/N] " -n 1 -r
 		echo
+		if [[ "$REPLY" =~ ^[Ss]$ ]]; then
+			echo "Skipping..."
+			return
+		fi
 		if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 			echo "Aborting due to occupied port"
 			exit 1
@@ -79,6 +99,17 @@ check_port () {
 		fi
 	else
 		echo "Available."
+	fi
+}
+
+check_firewall () {
+	if sudo systemctl stop firewalld.service &>/dev/null; then
+		echo "Attempting to stop firewalld.service"
+		echo "When done, enable with: ${bold}sudo systemctl start firewalld.service${normal}"
+	fi
+	if sudo ufw status | grep -qw active; then
+		sudo ufw disable
+		echo "When done, enable with: ${bold}sudo ufw enable${normal}"
 	fi
 }
 
@@ -105,5 +136,6 @@ check_port udp 6666 "detect unencrypted Tuya firmware"
 check_port udp 6667 "detect encrypted Tuya firmware"
 check_port tcp 1883 "run MQTT"
 check_port tcp 8886 "run MQTTS"
+check_firewall
 check_blacklist
 

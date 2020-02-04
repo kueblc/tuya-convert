@@ -18,18 +18,18 @@ help_message = '''USAGE:
 iot:	
 %s -i 43511212112233445566 -l a1b2c3d4e5f67788''' % (sys.argv[0].split("/")[-1])
 
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 pad = lambda s: s + (16 - len(s) % 16) * chr(16 - len(s) % 16)
 unpad = lambda s: s[:-ord(s[len(s) - 1:])]
-encrypt = lambda msg, key: AES.new(key.encode(), AES.MODE_ECB).encrypt(pad(msg))
-decrypt = lambda msg, key: unpad(AES.new(key.encode(), AES.MODE_ECB).decrypt(msg))
+encrypt = lambda msg, key: AES.new(key, AES.MODE_ECB).encrypt(pad(msg).encode())
+decrypt = lambda msg, key: unpad(AES.new(key, AES.MODE_ECB).decrypt(msg)).decode()
 
 def iot_dec(message, local_key):
-	message_clear = decrypt(base64.b64decode(message[19:]), local_key)
+	message_clear = decrypt(base64.b64decode(message[19:]), local_key.encode())
 	print (message_clear)
 	return message_clear
 def iot_enc(message, local_key, protocol):
-	messge_enc = encrypt(message, local_key)
+	messge_enc = encrypt(message, local_key.encode())
 	if protocol == "2.1":
 		messge_enc = base64.b64encode(messge_enc)
 		signature = b'data=' + messge_enc + b'||pv=' + protocol.encode() + b'||' + local_key.encode()
